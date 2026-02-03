@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.torknetwork</groupId>
+    <artifactId>tork-governance</artifactId>
+    <version>0.1.0</version>
+    <packaging>jar</packaging>
+
+    <name>Tork Governance SDK</name>
+    <description>On-device AI governance with PII detection, redaction, and cryptographic receipts for Java</description>
+    <url>https://github.com/torkjacobs/tork-governance</url>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.9.3</junit.version>
+        <spring.version>5.3.30</spring.version>
+    </properties>
+
+    <dependencies>
+        <!-- Servlet API (provided by container) -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>4.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring Web (optional, for Spring Boot integration) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- JAX-RS API (for Quarkus integration) -->
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.1.1</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Micronaut HTTP (optional) -->
+        <dependency>
+            <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-http</artifactId>
+            <version>3.10.1</version>
+            <scope>provided</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.4.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Tork Network</name>
+            <email>dev@torknetwork.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/torkjacobs/tork-governance.git</connection>
+        <developerConnection>scm:git:ssh://github.com:torkjacobs/tork-governance.git</developerConnection>
+        <url>https://github.com/torkjacobs/tork-governance</url>
+    </scm>
+</project>
