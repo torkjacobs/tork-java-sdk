@@ -41,6 +41,31 @@ public class Example {
 }
 ```
 
+## Regional PII Detection (v1.1)
+
+Activate country-specific and industry-specific PII patterns:
+
+```java
+Tork tork = new Tork();
+
+// UAE regional detection — Emirates ID, +971 phone, PO Box
+GovernanceResult result = tork.govern(
+    "Emirates ID: 784-1234-1234567-1",
+    List.of("ae"),
+    null
+);
+
+// Multi-region + industry
+GovernanceResult result = tork.govern(
+    "Aadhaar: 1234 5678 9012, ICD-10: J45.20",
+    List.of("in"),
+    "healthcare"
+);
+
+// Available regions: AU, US, GB, EU, AE, SA, NG, IN, JP, CN, KR, BR
+// Available industries: healthcare, finance, legal
+```
+
 ## PII Types Detected
 
 | Type | Pattern | Redaction |

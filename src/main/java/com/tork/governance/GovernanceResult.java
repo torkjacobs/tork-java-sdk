@@ -16,6 +16,8 @@ public class GovernanceResult {
     private final Receipt receipt;
     private final boolean hasPII;
     private final Set<PIIType> piiTypes;
+    private final List<String> region;
+    private final String industry;
 
     /**
      * Create a new governance result.
@@ -27,6 +29,22 @@ public class GovernanceResult {
      */
     public GovernanceResult(GovernanceAction action, String output,
                             List<PIIDetector.PIIMatch> matches, Receipt receipt) {
+        this(action, output, matches, receipt, null, null);
+    }
+
+    /**
+     * Create a new governance result with region and industry.
+     *
+     * @param action the action taken
+     * @param output the governed output text
+     * @param matches list of PII matches found
+     * @param receipt the governance receipt
+     * @param region optional regional PII profiles activated
+     * @param industry optional industry profile activated
+     */
+    public GovernanceResult(GovernanceAction action, String output,
+                            List<PIIDetector.PIIMatch> matches, Receipt receipt,
+                            List<String> region, String industry) {
         this.action = action;
         this.output = output;
         this.matches = Collections.unmodifiableList(matches);
@@ -35,6 +53,8 @@ public class GovernanceResult {
         this.piiTypes = matches.stream()
             .map(PIIDetector.PIIMatch::getType)
             .collect(Collectors.toUnmodifiableSet());
+        this.region = region;
+        this.industry = industry;
     }
 
     /**
@@ -107,6 +127,22 @@ public class GovernanceResult {
      */
     public boolean isDenied() {
         return action == GovernanceAction.DENY;
+    }
+
+    /**
+     * Get the regional PII profiles that were activated.
+     * @return list of region codes, or null if not specified
+     */
+    public List<String> getRegion() {
+        return region;
+    }
+
+    /**
+     * Get the industry profile that was activated.
+     * @return industry name, or null if not specified
+     */
+    public String getIndustry() {
+        return industry;
     }
 
     @Override
