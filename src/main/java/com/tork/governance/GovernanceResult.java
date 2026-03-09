@@ -18,6 +18,7 @@ public class GovernanceResult {
     private final Set<PIIType> piiTypes;
     private final List<String> region;
     private final String industry;
+    private final SessionContext sessionContext;
 
     /**
      * Create a new governance result.
@@ -29,7 +30,7 @@ public class GovernanceResult {
      */
     public GovernanceResult(GovernanceAction action, String output,
                             List<PIIDetector.PIIMatch> matches, Receipt receipt) {
-        this(action, output, matches, receipt, null, null);
+        this(action, output, matches, receipt, null, null, null);
     }
 
     /**
@@ -45,6 +46,24 @@ public class GovernanceResult {
     public GovernanceResult(GovernanceAction action, String output,
                             List<PIIDetector.PIIMatch> matches, Receipt receipt,
                             List<String> region, String industry) {
+        this(action, output, matches, receipt, region, industry, null);
+    }
+
+    /**
+     * Create a new governance result with region, industry, and session context.
+     *
+     * @param action the action taken
+     * @param output the governed output text
+     * @param matches list of PII matches found
+     * @param receipt the governance receipt
+     * @param region optional regional PII profiles activated
+     * @param industry optional industry profile activated
+     * @param sessionContext optional agent/session context
+     */
+    public GovernanceResult(GovernanceAction action, String output,
+                            List<PIIDetector.PIIMatch> matches, Receipt receipt,
+                            List<String> region, String industry,
+                            SessionContext sessionContext) {
         this.action = action;
         this.output = output;
         this.matches = Collections.unmodifiableList(matches);
@@ -55,6 +74,7 @@ public class GovernanceResult {
             .collect(Collectors.toUnmodifiableSet());
         this.region = region;
         this.industry = industry;
+        this.sessionContext = sessionContext;
     }
 
     /**
@@ -143,6 +163,14 @@ public class GovernanceResult {
      */
     public String getIndustry() {
         return industry;
+    }
+
+    /**
+     * Get the agent/session context, if provided.
+     * @return session context, or null if not specified
+     */
+    public SessionContext getSessionContext() {
+        return sessionContext;
     }
 
     @Override

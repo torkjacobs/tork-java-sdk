@@ -67,10 +67,24 @@ public class Tork {
      * @return governance result with action, output, and receipt
      */
     public GovernanceResult govern(String input, List<String> region, String industry) {
+        return govern(input, region, industry, null);
+    }
+
+    /**
+     * Apply governance to input text with regional, industry, and agent/session context.
+     *
+     * @param input the text to govern
+     * @param region optional list of regional PII profiles (e.g. ["ae", "in"])
+     * @param industry optional industry profile (e.g. "healthcare", "finance", "legal")
+     * @param sessionContext optional agent/session context for multi-agent tracking
+     * @return governance result with action, output, and receipt
+     */
+    public GovernanceResult govern(String input, List<String> region, String industry,
+                                    SessionContext sessionContext) {
         GovernanceResult result = govern(input);
         return new GovernanceResult(
             result.getAction(), result.getOutput(), result.getMatches(),
-            result.getReceipt(), region, industry
+            result.getReceipt(), region, industry, sessionContext
         );
     }
 
