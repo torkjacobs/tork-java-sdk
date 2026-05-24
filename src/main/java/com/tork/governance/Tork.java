@@ -121,11 +121,7 @@ public class Tork {
             output = input;
         } else {
             action = config.getDefaultAction();
-            if (action == GovernanceAction.REDACT) {
-                output = detector.redact(input, matches);
-            } else {
-                output = input;
-            }
+            output = detector.redact(input, matches);
             totalPIIDetected.incrementAndGet();
         }
 

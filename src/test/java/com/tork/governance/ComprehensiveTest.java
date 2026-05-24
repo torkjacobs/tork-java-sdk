@@ -324,7 +324,7 @@ public class ComprehensiveTest {
             Tork denyTork = new Tork(null, config);
             GovernanceResult result = denyTork.govern("SSN: 123-45-6789");
             assertEquals(GovernanceAction.DENY, result.getAction());
-            assertEquals("SSN: 123-45-6789", result.getOutput()); // Not redacted
+            assertEquals("SSN: [SSN_REDACTED]", result.getOutput()); // Output is always redacted regardless of action
         }
 
         @Test

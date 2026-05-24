@@ -112,7 +112,7 @@ public class PIIDetector {
             while (matcher.find()) {
                 matches.add(new PIIMatch(
                     type,
-                    matcher.group(),
+                    "[REDACTED]",
                     matcher.start(),
                     matcher.end()
                 ));

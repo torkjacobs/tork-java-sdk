@@ -27,7 +27,7 @@ class PIIDetectorTest {
 
         assertEquals(1, matches.size());
         assertEquals(PIIType.SSN, matches.get(0).getType());
-        assertEquals("123-45-6789", matches.get(0).getValue());
+        assertEquals("[REDACTED]", matches.get(0).getValue());
     }
 
     @Test
@@ -37,7 +37,7 @@ class PIIDetectorTest {
 
         assertEquals(1, matches.size());
         assertEquals(PIIType.EMAIL, matches.get(0).getType());
-        assertEquals("john.doe@example.com", matches.get(0).getValue());
+        assertEquals("[REDACTED]", matches.get(0).getValue());
     }
 
     @Test
@@ -96,7 +96,7 @@ class PIIDetectorTest {
 
         assertEquals(1, matches.size());
         assertEquals(PIIType.IP_ADDRESS, matches.get(0).getType());
-        assertEquals("192.168.1.1", matches.get(0).getValue());
+        assertEquals("[REDACTED]", matches.get(0).getValue());
     }
 
     @Test
@@ -106,7 +106,7 @@ class PIIDetectorTest {
 
         assertEquals(1, matches.size());
         assertEquals(PIIType.DATE_OF_BIRTH, matches.get(0).getType());
-        assertEquals("12/25/1990", matches.get(0).getValue());
+        assertEquals("[REDACTED]", matches.get(0).getValue());
     }
 
     @Test
