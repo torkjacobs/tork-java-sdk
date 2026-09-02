@@ -8,20 +8,32 @@ public enum PIIType {
     /** Social Security Number (format: XXX-XX-XXXX) */
     SSN("ssn", "[SSN_REDACTED]"),
 
+    /** Credit card number (16 digits) */
+    CREDIT_CARD("credit_card", "[CARD_REDACTED]"),
+
     /** Email address */
     EMAIL("email", "[EMAIL_REDACTED]"),
 
     /** Phone number (US formats) */
     PHONE("phone", "[PHONE_REDACTED]"),
 
-    /** Credit card number (16 digits) */
-    CREDIT_CARD("credit_card", "[CARD_REDACTED]"),
+    /** Street address */
+    ADDRESS("address", "[ADDRESS_REDACTED]"),
 
     /** IP address */
     IP_ADDRESS("ip_address", "[IP_REDACTED]"),
 
     /** Date of birth (MM/DD/YYYY format) */
-    DATE_OF_BIRTH("date_of_birth", "[DOB_REDACTED]");
+    DATE_OF_BIRTH("date_of_birth", "[DOB_REDACTED]"),
+
+    /** Passport number */
+    PASSPORT("passport", "[PASSPORT_REDACTED]"),
+
+    /** Driver's license number */
+    DRIVERS_LICENSE("drivers_license", "[DL_REDACTED]"),
+
+    /** Bank account number */
+    BANK_ACCOUNT("bank_account", "[ACCOUNT_REDACTED]");
 
     private final String code;
     private final String redaction;

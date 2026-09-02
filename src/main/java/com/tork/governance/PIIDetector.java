@@ -1,6 +1,7 @@
 package com.tork.governance;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +13,21 @@ import java.util.regex.Pattern;
 /**
  * Detects and redacts PII (Personally Identifiable Information) in text.
  * Uses regex patterns for various PII types.
+ *
+ * <p>PATTERNS covers the full Tier 1 basic vocabulary (10 types), ported
+ * regex-source-verbatim from tork-js-sdk/src/pii.ts's {@code PII_PATTERNS},
+ * in the same declaration order (ssn, credit_card, email, phone, address,
+ * ip_address, date_of_birth, passport, drivers_license, bank_account) so
+ * that {@link #detect}/{@link #detectAndRedact}'s sequential per-type
+ * redaction matches the JS/Go SDKs' behavior: later patterns (notably
+ * {@code bank_account}'s broad {@code \d{8,17}}) only see text already
+ * redacted by earlier, more specific patterns. {@link PIIType}'s enum
+ * declaration order mirrors this same order for the same reason (an
+ * {@link EnumMap} iterates in enum-declaration order).</p>
+ *
+ * <p>Parity discipline (SDK-DECLARED-PII-TYPES-WITHOUT-PATTERNS-ACROSS-SDKS):
+ * every {@link PIIType} constant MUST have a corresponding entry here. See
+ * {@code PIIDetectorTest#testEveryDeclaredPIITypeHasAPattern}.</p>
  */
 public class PIIDetector {
 
@@ -21,6 +37,10 @@ public class PIIDetector {
         // Social Security Number: XXX-XX-XXXX
         PATTERNS.put(PIIType.SSN, Pattern.compile("\\b\\d{3}-\\d{2}-\\d{4}\\b"));
 
+        // Credit card number (16 digits with optional separators)
+        PATTERNS.put(PIIType.CREDIT_CARD, Pattern.compile(
+            "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b"));
+
         // Email address
         PATTERNS.put(PIIType.EMAIL, Pattern.compile(
             "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"));
@@ -29,9 +49,11 @@ public class PIIDetector {
         PATTERNS.put(PIIType.PHONE, Pattern.compile(
             "\\b(?:\\+?1[-.]?\\s?)?\\(?\\d{3}\\)?[-.]?\\s?\\d{3}[-.]?\\s?\\d{4}\\b"));
 
-        // Credit card number (16 digits with optional separators)
-        PATTERNS.put(PIIType.CREDIT_CARD, Pattern.compile(
-            "\\b\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}[-\\s]?\\d{4}\\b"));
+        // Street address (case-insensitive: JS source carries the `i` flag)
+        PATTERNS.put(PIIType.ADDRESS, Pattern.compile(
+            "\\b\\d{1,5}\\s+\\w+(?:\\s+\\w+)*\\s+(?:Street|St|Avenue|Ave|Road|Rd|" +
+            "Boulevard|Blvd|Drive|Dr|Lane|Ln|Court|Ct|Way|Place|Pl)\\b",
+            Pattern.CASE_INSENSITIVE));
 
         // IP address
         PATTERNS.put(PIIType.IP_ADDRESS, Pattern.compile(
@@ -41,6 +63,30 @@ public class PIIDetector {
         // Date of birth (MM/DD/YYYY)
         PATTERNS.put(PIIType.DATE_OF_BIRTH, Pattern.compile(
             "\\b(?:0[1-9]|1[0-2])/(?:0[1-9]|[12]\\d|3[01])/(?:19|20)\\d{2}\\b"));
+
+        // Passport number (1-2 uppercase letters + 6-9 digits)
+        PATTERNS.put(PIIType.PASSPORT, Pattern.compile("\\b[A-Z]{1,2}\\d{6,9}\\b"));
+
+        // Driver's license number (1 uppercase letter + 7-14 digits)
+        PATTERNS.put(PIIType.DRIVERS_LICENSE, Pattern.compile("\\b[A-Z]\\d{7,14}\\b"));
+
+        // Bank account number (8-17 digits) -- deliberately last: broad and
+        // greedy, so it only redacts digit runs no earlier, more specific
+        // pattern already claimed.
+        PATTERNS.put(PIIType.BANK_ACCOUNT, Pattern.compile("\\b\\d{8,17}\\b"));
+    }
+
+    /**
+     * The live pattern table, keyed by {@link PIIType}. Exposed for parity
+     * testing (every declared {@link PIIType} must have an entry here) and
+     * for reuse by other on-device scanners (e.g. tool-result scanning) so
+     * there is exactly one detector implementation, not a second copy of
+     * these patterns.
+     *
+     * @return an unmodifiable view of the pattern table
+     */
+    public static Map<PIIType, Pattern> getPatterns() {
+        return Collections.unmodifiableMap(PATTERNS);
     }
 
     /**

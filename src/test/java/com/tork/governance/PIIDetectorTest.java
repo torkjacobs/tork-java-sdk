@@ -4,7 +4,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -198,5 +201,45 @@ class PIIDetectorTest {
     void testEmptyString() {
         List<PIIDetector.PIIMatch> matches = detector.detect("");
         assertTrue(matches.isEmpty());
+    }
+
+    /**
+     * Parity test for SDK-DECLARED-PII-TYPES-WITHOUT-PATTERNS-ACROSS-SDKS
+     * (P1): every {@link PIIType} this SDK declares MUST have a live
+     * pattern in {@link PIIDetector#getPatterns()}. Three of three SDKs
+     * checked before this one (JS, Go, and a third) had declared types with
+     * no backing pattern -- a type that silently passed through detection
+     * unmasked. This test fails the build the moment that regresses here,
+     * for any type, present or future.
+     */
+    @Test
+    @DisplayName("Every declared PIIType has a live pattern (parity)")
+    void testEveryDeclaredPIITypeHasAPattern() {
+        Map<PIIType, java.util.regex.Pattern> patterns = PIIDetector.getPatterns();
+        List<PIIType> missing = new ArrayList<>();
+        for (PIIType type : PIIType.values()) {
+            if (!patterns.containsKey(type) || patterns.get(type) == null) {
+                missing.add(type);
+            }
+        }
+        assertTrue(missing.isEmpty(),
+            "PIIType constant(s) declared without a corresponding pattern: " + missing);
+    }
+
+    /**
+     * Confirms this SDK carries the full Tier 1 basic vocabulary (10 types)
+     * shared with the JS/Go SDKs, with JS-identical string codes.
+     */
+    @Test
+    @DisplayName("Declares the JS Tier 1 basic vocabulary with identical codes")
+    void testTier1VocabularyCodesMatchJS() {
+        Set<String> expected = new java.util.HashSet<>(java.util.Arrays.asList(
+            "ssn", "credit_card", "email", "phone", "address",
+            "ip_address", "date_of_birth", "passport", "drivers_license", "bank_account"));
+        Set<String> actual = new java.util.HashSet<>();
+        for (PIIType type : PIIType.values()) {
+            actual.add(type.getCode());
+        }
+        assertEquals(expected, actual);
     }
 }

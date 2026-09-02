@@ -135,6 +135,93 @@ public class Tork {
     }
 
     /**
+     * Scan a tool result (MCP server response, or any external system's
+     * output) for PII and prompt injection BEFORE it is appended to model
+     * context, and record the scan on a receipt.
+     *
+     * <p>The scan itself is the pure {@link ToolResultScanner#scanToolResult}
+     * -- on-device, synchronous, zero network calls, using the same PII
+     * detector as {@link #govern(String)}. This method adds the receipt:
+     * {@code receipt.getToolResultScan()} carries counts by kind and type,
+     * the tool name, the server URI, whether the result was blocked, and the
+     * SDK version. It never carries the payload, a matched substring, or a
+     * location path.</p>
+     *
+     * <p>This is a CLIENT-SIDE, CLIENT-ATTESTED control: it runs in the
+     * caller's process, so the receipt records {@code attested_by: "client"}
+     * and {@code capture_mode: "edge"} -- Tork did not execute this scan and
+     * cannot verify it ran at all. Enforcement at the gateway, where a caller
+     * cannot skip the scan, is a separate and later control.</p>
+     *
+     * <p>Action mapping (fixed, NOT {@code config.defaultAction}: unlike
+     * {@link #govern(String)}, this path always returns masked output when it
+     * returns any, so the action must describe what actually happened to the
+     * tool result):</p>
+     * <ul>
+     *   <li>blocked &rarr; DENY (nothing is returned to append)</li>
+     *   <li>injection detected &rarr; ESCALATE (returned, flagged for a human)</li>
+     *   <li>PII masked &rarr; REDACT</li>
+     *   <li>nothing found &rarr; ALLOW</li>
+     * </ul>
+     *
+     * @param input the tool result to scan
+     * @return the scan result plus a receipt carrying the tool_result_scan block
+     */
+    public GovernedToolResultScanResult scanToolResult(ToolResultScanInput input) {
+        return scanToolResult(input, new ToolResultScanOptions());
+    }
+
+    /**
+     * As {@link #scanToolResult(ToolResultScanInput)}, with options
+     * (block-on-injection, custom redaction patterns, max traversal depth).
+     *
+     * @param input   the tool result to scan
+     * @param options optional scan behavior
+     * @return the scan result plus a receipt carrying the tool_result_scan block
+     */
+    public GovernedToolResultScanResult scanToolResult(ToolResultScanInput input, ToolResultScanOptions options) {
+        long startTime = System.nanoTime();
+
+        ToolResultScanOptions effectiveOptions = options != null ? options : new ToolResultScanOptions();
+        ToolResultScanResult scan = ToolResultScanner.scanToolResult(input, effectiveOptions);
+
+        int piiCount = ToolResultScanner.scanPIICount(scan.getFindings());
+        int injectionCount = ToolResultScanner.scanInjectionCount(scan.getFindings());
+
+        GovernanceAction action;
+        if (scan.isBlocked()) {
+            action = GovernanceAction.DENY;
+        } else if (injectionCount > 0) {
+            action = GovernanceAction.ESCALATE;
+        } else if (piiCount > 0) {
+            action = GovernanceAction.REDACT;
+        } else {
+            action = GovernanceAction.ALLOW;
+        }
+
+        long processingTime = System.nanoTime() - startTime;
+        totalCalls.incrementAndGet();
+        if (piiCount > 0) {
+            totalPIIDetected.incrementAndGet();
+        }
+        totalProcessingTimeNanos.addAndGet(processingTime);
+
+        ToolResultScanReceiptBlock block = ToolResultScanner.buildToolResultScanBlock(
+            input.getToolName(), input.getServerUri(), scan, Version.SDK_VERSION);
+
+        // Hashes, not content: hashText is SHA256, so neither the payload nor
+        // the sanitized copy is recoverable from the receipt. A blocked scan
+        // has no output to hash and records the hash of the empty string.
+        String stableInput = ToolResultScanner.stableStringify(input.getPayload());
+        String stableOutput = scan.isBlocked() ? "" : ToolResultScanner.stableStringify(scan.getSanitized());
+        Receipt receipt = Receipt.generate(stableInput, stableOutput, action, processingTime)
+            .withToolResultScan(block);
+
+        return new GovernedToolResultScanResult(scan.getSanitized(), scan.getFindings(), scan.isBlocked(),
+            scan.getReason(), receipt);
+    }
+
+    /**
      * Check if text contains PII without redacting.
      *
      * @param text the text to check

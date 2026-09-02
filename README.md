@@ -10,14 +10,14 @@ On-device AI governance with PII detection, redaction, and cryptographic receipt
 <dependency>
     <groupId>com.torknetwork</groupId>
     <artifactId>tork-governance</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.torknetwork:tork-governance:0.1.0'
+implementation 'com.torknetwork:tork-governance:0.2.0'
 ```
 
 ## Quick Start
@@ -68,14 +68,64 @@ GovernanceResult result = tork.govern(
 
 ## PII Types Detected
 
-| Type | Pattern | Redaction |
-|------|---------|-----------|
-| SSN | `XXX-XX-XXXX` | `[SSN_REDACTED]` |
-| Email | `user@domain.com` | `[EMAIL_REDACTED]` |
-| Phone | `555-123-4567` | `[PHONE_REDACTED]` |
-| Credit Card | `4111-1111-1111-1111` | `[CARD_REDACTED]` |
-| IP Address | `192.168.1.1` | `[IP_REDACTED]` |
-| Date of Birth | `MM/DD/YYYY` | `[DOB_REDACTED]` |
+Tier 1 basic vocabulary — the same 10 types, with the same string codes and
+redaction labels, as the JS and Go SDKs. This SDK does **not** carry the
+Python SDK's regional/industry pattern tier (AU/US/GB/EU/AE/... profiles) —
+see [Regional PII Detection](#regional-pii-detection-v11) above for this
+SDK's separate, older regional mechanism.
+
+| Type | Code | Pattern | Redaction |
+|------|------|---------|-----------|
+| SSN | `ssn` | `XXX-XX-XXXX` | `[SSN_REDACTED]` |
+| Credit Card | `credit_card` | `4111-1111-1111-1111` | `[CARD_REDACTED]` |
+| Email | `email` | `user@domain.com` | `[EMAIL_REDACTED]` |
+| Phone | `phone` | `555-123-4567` | `[PHONE_REDACTED]` |
+| Address | `address` | `123 Main Street` | `[ADDRESS_REDACTED]` |
+| IP Address | `ip_address` | `192.168.1.1` | `[IP_REDACTED]` |
+| Date of Birth | `date_of_birth` | `MM/DD/YYYY` | `[DOB_REDACTED]` |
+| Passport | `passport` | `AB1234567` | `[PASSPORT_REDACTED]` |
+| Driver's License | `drivers_license` | `D1234567` | `[DL_REDACTED]` |
+| Bank Account | `bank_account` | `12345678901234` | `[ACCOUNT_REDACTED]` |
+
+## Scanning tool results
+
+A tool result returned by an MCP server — or any external system you do not
+control — is untrusted input that is about to be appended to a model's
+context. `Tork#scanToolResult` scans it first, on-device, for PII and prompt
+injection:
+
+```java
+import com.tork.governance.*;
+
+Tork tork = new Tork();
+
+GovernedToolResultScanResult scan = tork.scanToolResult(
+    new ToolResultScanInput("lookup_customer", "mcp://crm.internal/customers", toolResult),
+    new ToolResultScanOptions().setBlockOnInjection(true)
+);
+
+if (scan.isBlocked()) {
+    log.warn(scan.getReason());       // do not append anything
+} else {
+    appendToContext(scan.getSanitized()); // PII masked in place
+}
+
+scan.getFindings();
+// [ToolResultFinding{kind=PII, type='email', count=1, location='$.content[0].text'},
+//  ToolResultFinding{kind=INJECTION, type='heuristic:instruction_override', count=1, location='$.content[0].text'}]
+```
+
+There is also a standalone `ToolResultScanner.scanToolResult(input, options)`
+static method with the same signature that returns a `ToolResultScanResult`
+(`sanitized`/`findings`/`blocked`/`reason`) and produces no receipt.
+
+- **PII uses the same on-device detector as `govern()`** (`PIIDetector`) — same patterns, same redaction labels. Matches are masked in place; the payload structure is otherwise unchanged, and a clean payload comes back untouched (same `Map`/`List` object identity).
+- **Injection detection is heuristic.** A conservative pattern set (`tork-injection-heuristics-v1`) covering instruction-override phrases, role reassignment, and exfiltration URLs. Every injection finding is typed `heuristic:<name>` because that is exactly what it is: a regex match over untrusted text, with false positives and false negatives, not a verified determination. Without `blockOnInjection`, matches are reported and the result is still returned; with it, `sanitized` is `null` so no masked copy can be appended by accident.
+- **Zero network calls.** The scan is pure and synchronous — this SDK has no HTTP client anywhere in the scan path.
+- **Recorded on the receipt as counts only.** `receipt.getToolResultScan()` carries `attested_by: "client"`, `capture_mode: "edge"`, the tool name and server URI, counts by kind and type, the blocked flag, and the SDK version. It never carries the payload, a matched value, or a location path. `ToolResultScanReceiptBlock#toJson()` emits this as snake_case, alphabetically-ordered JSON with `reason`/`server_uri` omitted (not nulled) when absent — the byte-identical cross-SDK artifact.
+- **Action mapping** on `Tork#scanToolResult`'s receipt (fixed, not `TorkConfig.defaultAction`): `blocked` → `DENY`, an injection finding present → `ESCALATE`, otherwise a PII finding present → `REDACT`, otherwise → `ALLOW`.
+
+**This is a client-side, client-attested control.** The scan runs in your process, and the receipt says so: Tork did not execute it and cannot verify it ran at all — the same honest boundary as every other edge attestation this SDK produces. **Gateway-side enforcement, where a caller cannot skip the scan, is a separate and later control.** Do not read a `tool_result_scan` block as proof that every tool result reaching a model was scanned; read it as a record of the scans a caller chose to run and report.
 
 ## Framework Integration
 

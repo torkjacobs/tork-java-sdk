@@ -19,6 +19,8 @@ public class Receipt {
     private final GovernanceAction action;
     private final String policyVersion;
     private final long processingTimeNanos;
+    /** Present only on receipts produced by {@link Tork#scanToolResult}. Nullable. */
+    private final ToolResultScanReceiptBlock toolResultScan;
 
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final String DEFAULT_POLICY_VERSION = "1.0.0";
@@ -29,6 +31,17 @@ public class Receipt {
     public Receipt(String receiptId, String timestamp, String inputHash,
                    String outputHash, GovernanceAction action,
                    String policyVersion, long processingTimeNanos) {
+        this(receiptId, timestamp, inputHash, outputHash, action, policyVersion, processingTimeNanos, null);
+    }
+
+    /**
+     * Create a new receipt with all fields, including an optional
+     * {@code tool_result_scan} block.
+     */
+    public Receipt(String receiptId, String timestamp, String inputHash,
+                   String outputHash, GovernanceAction action,
+                   String policyVersion, long processingTimeNanos,
+                   ToolResultScanReceiptBlock toolResultScan) {
         this.receiptId = receiptId;
         this.timestamp = timestamp;
         this.inputHash = inputHash;
@@ -36,6 +49,20 @@ public class Receipt {
         this.action = action;
         this.policyVersion = policyVersion;
         this.processingTimeNanos = processingTimeNanos;
+        this.toolResultScan = toolResultScan;
+    }
+
+    /**
+     * Return a copy of this receipt carrying the given {@code tool_result_scan}
+     * block. Used by {@link Tork#scanToolResult} to attach the block after the
+     * base receipt fields (id, timestamp, hashes) are generated.
+     *
+     * @param toolResultScan the block to attach
+     * @return a new Receipt instance, identical except for the block
+     */
+    public Receipt withToolResultScan(ToolResultScanReceiptBlock toolResultScan) {
+        return new Receipt(receiptId, timestamp, inputHash, outputHash, action,
+            policyVersion, processingTimeNanos, toolResultScan);
     }
 
     /**
@@ -132,6 +159,7 @@ public class Receipt {
     public GovernanceAction getAction() { return action; }
     public String getPolicyVersion() { return policyVersion; }
     public long getProcessingTimeNanos() { return processingTimeNanos; }
+    public ToolResultScanReceiptBlock getToolResultScan() { return toolResultScan; }
 
     @Override
     public String toString() {
