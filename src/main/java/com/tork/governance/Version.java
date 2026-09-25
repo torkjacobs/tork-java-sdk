@@ -10,7 +10,7 @@ package com.tork.governance;
 public final class Version {
 
     /** Current SDK version. Keep in sync with pom.xml's {@code <version>}. */
-    public static final String SDK_VERSION = "0.2.0";
+    public static final String SDK_VERSION = "0.3.0";
 
     private Version() {
     }

@@ -8,9 +8,9 @@ On-device AI governance with PII detection, redaction, and cryptographic receipt
 
 ```xml
 <dependency>
-    <groupId>com.torknetwork</groupId>
+    <groupId>io.github.torkjacobs</groupId>
     <artifactId>tork-governance</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
@@ -41,30 +41,51 @@ public class Example {
 }
 ```
 
-## Regional PII Detection (v1.1)
+## Country PII detection
 
-Activate country-specific and industry-specific PII patterns:
+23 country profiles, 50 patterns and 20 check digits, generated from Tork's own
+country registry (bundle `1.0.0`) and computed entirely on-device.
+
+Countries: AU, US, GB, EU, AE, SA, NG, IN, JP, CN, KR, BR, CA, ZA, GH, IT, KE,
+MU, MX, MY, PK, SG, TH.
+
+A country's patterns switch on when the text activates that country — the same
+content signals the cloud uses — so ordinary business text is not measured
+against 50 national-identifier patterns it could never contain. On the
+1,159-line business corpus this SDK is tested against, nothing is redacted.
 
 ```java
-Tork tork = new Tork();
+PIIDetector detector = new PIIDetector();
+PIIDetector.DetectionResult r = detector.detectAndRedact(
+    "South African ID number 8001015009087 for the FICA check.");
 
-// UAE regional detection — Emirates ID, +971 phone, PO Box
-GovernanceResult result = tork.govern(
-    "Emirates ID: 784-1234-1234567-1",
-    List.of("ae"),
-    null
-);
-
-// Multi-region + industry
-GovernanceResult result = tork.govern(
-    "Aadhaar: 1234 5678 9012, ICD-10: J45.20",
-    List.of("in"),
-    "healthcare"
-);
-
-// Available regions: AU, US, GB, EU, AE, SA, NG, IN, JP, CN, KR, BR
-// Available industries: healthcare, finance, legal
+r.getRegions();       // ["ZA"]
+r.getCountryLabels(); // ["ZA_ID"]
+r.getRedactedText();  // "South African ID number [ZA_ID_REDACTED] for the FICA check."
 ```
+
+Force profiles on when you already know the jurisdiction:
+
+```java
+PIIDetector.DetectionResult forced = detector.detectAndRedact(
+    "Documento 529.982.247-25 arquivado.", List.of("br"));
+// forced.getRedactedText() == "Documento [CPF_REDACTED] arquivado."
+```
+
+Three gates keep the false-positive rate down, and all three must pass:
+
+1. **Activation** — one of the country's content signals fires.
+2. **Keyword** — for 18 of the 24 national, tax and health identifiers, one of
+   the identifier's keywords must appear within 60 characters before the match
+   or 40 after.
+3. **Check digit** — for the 10 identifiers whose issuing authority publishes
+   the algorithm, a number of the right shape that fails its check digit is not
+   that country's identifier. Where the algorithm is community-sourced rather
+   than authority-published (`ca_sin`, `emirates_id`, `de_tax_id`, `kr_rrn`,
+   `sa_national_id`) the checksum is advisory and never rejects a match.
+
+Still cloud-only, and not in this SDK: the near-miss fallback, the slot,
+context, gravity and name layers, industry profiles, and org configuration.
 
 ## PII Types Detected
 

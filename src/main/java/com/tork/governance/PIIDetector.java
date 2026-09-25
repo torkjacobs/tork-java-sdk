@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
+import network.tork.governance.pii.PiiCountry;
+import network.tork.governance.pii.PiiRegistry;
 import java.util.regex.Pattern;
 
 /**
@@ -125,20 +127,47 @@ public class PIIDetector {
         private final Set<PIIType> types;
         private final List<PIIMatch> matches;
         private final String redactedText;
+        private final List<PiiCountry.CountryMatch> countryMatches;
+        private final List<String> countryLabels;
+        private final List<String> regions;
 
         public DetectionResult(boolean hasPII, Set<PIIType> types,
                                List<PIIMatch> matches, String redactedText) {
+            this(hasPII, types, matches, redactedText,
+                 java.util.Collections.emptyList(),
+                 java.util.Collections.emptyList(),
+                 java.util.Collections.emptyList());
+        }
+
+        public DetectionResult(boolean hasPII, Set<PIIType> types,
+                               List<PIIMatch> matches, String redactedText,
+                               List<PiiCountry.CountryMatch> countryMatches,
+                               List<String> countryLabels,
+                               List<String> regions) {
             this.hasPII = hasPII;
             this.types = types;
             this.matches = matches;
             this.redactedText = redactedText;
+            this.countryMatches = countryMatches;
+            this.countryLabels = countryLabels;
+            this.regions = regions;
         }
 
         public boolean hasPII() { return hasPII; }
         public Set<PIIType> getTypes() { return types; }
         public List<PIIMatch> getMatches() { return matches; }
         public String getRedactedText() { return redactedText; }
-        public int getCount() { return matches.size(); }
+
+        /** Country-registry detections, kept separate from the ten L0 types. */
+        public List<PiiCountry.CountryMatch> getCountryMatches() { return countryMatches; }
+
+        /** Redaction labels of those matches, e.g. {@code NATIONAL_ID}. */
+        public List<String> getCountryLabels() { return countryLabels; }
+
+        /** Country profiles the text activated, in registry order. */
+        public List<String> getRegions() { return regions; }
+
+        public int getCount() { return matches.size() + countryMatches.size(); }
     }
 
     /**
@@ -175,22 +204,102 @@ public class PIIDetector {
      * @return detection result with matches and redacted text
      */
     public DetectionResult detectAndRedact(String text) {
-        List<PIIMatch> matches = detect(text);
+        return detectAndRedact(text, null);
+    }
+
+    /**
+     * Detect PII and return a full detection result with redacted text, forcing
+     * a set of country profiles on instead of inferring them from the content.
+     *
+     * @param text the text to scan
+     * @param regions country codes, case-insensitive; null or empty infers them
+     * @return detection result with matches and redacted text
+     */
+    public DetectionResult detectAndRedact(String text, List<String> regions) {
+        // REDACTION IS ONE PASS. Until 0.2.0 each type was redacted with its own
+        // Matcher.replaceAll over text a previous type had already rewritten,
+        // while the match list carried indices into the ORIGINAL text. Two types
+        // matching overlapping spans could leave half an identifier standing
+        // beside a redaction token -- digits exposed in output the caller had
+        // been told was redacted. Every match is now collected against the
+        // original text, overlaps are resolved before anything is rewritten, and
+        // the surviving spans are spliced right to left in a single pass.
+        List<PIIMatch> l0 = detect(text);
+        List<PIIMatch> kept = new ArrayList<>();
         Set<PIIType> types = new HashSet<>();
-        String redactedText = text;
 
-        for (PIIMatch match : matches) {
-            types.add(match.getType());
+        List<String> activeRegions = (regions != null && !regions.isEmpty())
+            ? regions.stream().map(String::toUpperCase).collect(java.util.stream.Collectors.toList())
+            : PiiCountry.inferRegions(text);
+        List<PiiCountry.CountryMatch> countryMatches =
+            PiiCountry.detect(text, PiiCountry.patternsForRegions(activeRegions));
+
+        // Resolve overlaps before anything is rewritten. A country identifier
+        // supersedes any L0 span it fully contains -- the cloud does the same,
+        // which is how a Saudi national ID stops coming back as
+        // [PHONE_REDACTED].
+        List<int[]> claimed = new ArrayList<>();
+        List<PiiCountry.RedactionSpan> spans = new ArrayList<>();
+        for (PiiCountry.CountryMatch c : countryMatches) {
+            claimed.add(new int[]{c.getStartIndex(), c.getEndIndex()});
+            spans.add(new PiiCountry.RedactionSpan(
+                c.getStartIndex(), c.getEndIndex(), c.getRedaction()));
         }
 
-        // Redact each PII type
-        for (Map.Entry<PIIType, Pattern> entry : PATTERNS.entrySet()) {
-            PIIType type = entry.getKey();
-            Pattern pattern = entry.getValue();
-            redactedText = pattern.matcher(redactedText).replaceAll(type.getRedaction());
+        for (PIIMatch m : l0) {
+            int start = m.getStartIndex();
+            int end = m.getEndIndex();
+            List<int[]> overlapping = new ArrayList<>();
+            for (int[] c : claimed) {
+                if (start < c[1] && end > c[0]) overlapping.add(c);
+            }
+            if (!overlapping.isEmpty()) {
+                boolean swallowsAll = true;
+                for (int[] c : overlapping) {
+                    int[] core = PiiCountry.trimmedCore(text, c[0], c[1]);
+                    if (!(start <= core[0] && end >= core[1])) {
+                        swallowsAll = false;
+                        break;
+                    }
+                }
+                if (!swallowsAll) continue;
+
+                // An L0 span that fully contains a country span still loses: the
+                // country label is the more specific claim.
+                boolean hitsCountry = false;
+                for (int[] o : overlapping) {
+                    for (PiiCountry.CountryMatch c : countryMatches) {
+                        if (c.getStartIndex() == o[0] && c.getEndIndex() == o[1]) {
+                            hitsCountry = true;
+                            break;
+                        }
+                    }
+                }
+                if (hitsCountry) continue;
+
+                for (int[] o : overlapping) {
+                    claimed.remove(o);
+                    spans.removeIf(sp -> sp.getStartIndex() == o[0] && sp.getEndIndex() == o[1]);
+                }
+            }
+            claimed.add(new int[]{start, end});
+            spans.add(new PiiCountry.RedactionSpan(start, end, m.getType().getRedaction()));
+            kept.add(m);
+            types.add(m.getType());
         }
 
-        return new DetectionResult(!matches.isEmpty(), types, matches, redactedText);
+        String redactedText = PiiCountry.applyRedactions(text, spans);
+
+        List<String> countryLabels = new ArrayList<>();
+        for (PiiCountry.CountryMatch c : countryMatches) {
+            if (!countryLabels.contains(c.getLabel())) countryLabels.add(c.getLabel());
+        }
+
+        kept.sort(java.util.Comparator.comparingInt(PIIMatch::getStartIndex));
+
+        return new DetectionResult(
+            !kept.isEmpty() || !countryMatches.isEmpty(),
+            types, kept, redactedText, countryMatches, countryLabels, activeRegions);
     }
 
     /**
@@ -204,15 +313,10 @@ public class PIIDetector {
         if (matches.isEmpty()) {
             return text;
         }
-
-        String result = text;
-        for (Map.Entry<PIIType, Pattern> entry : PATTERNS.entrySet()) {
-            PIIType type = entry.getKey();
-            Pattern pattern = entry.getValue();
-            result = pattern.matcher(result).replaceAll(type.getRedaction());
-        }
-
-        return result;
+        // Delegates so there is one implementation of the redaction rules. The
+        // old body re-ran every pattern over already-rewritten text, which is
+        // the partial-redaction bug fixed in 0.3.0.
+        return detectAndRedact(text).getRedactedText();
     }
 
     /**

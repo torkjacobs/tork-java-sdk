@@ -4,9 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>network.tork</groupId>
+    <!-- io.github.torkjacobs is the coordinate that is actually published on
+         Maven Central (io.github.torkjacobs:tork-governance:0.1.0). This POM
+         declared network.tork, which has never been published and is not a
+         verified namespace, so `mvn deploy` from here would not have reached
+         the artifact anyone depends on. Corrected 25 Sep 2026. -->
+    <groupId>io.github.torkjacobs</groupId>
     <artifactId>tork-governance</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <packaging>jar</packaging>
 
     <name>Tork Governance SDK</name>
@@ -58,6 +63,15 @@
         </dependency>
 
         <!-- Testing -->
+        <!-- Test-scoped only: parses the country-layer parity fixtures in
+             src/test/resources. Not a dependency of the published artifact. -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.11.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
