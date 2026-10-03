@@ -10,14 +10,14 @@ On-device AI governance with PII detection, redaction, and cryptographic receipt
 <dependency>
     <groupId>io.github.torkjacobs</groupId>
     <artifactId>tork-governance</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'com.torknetwork:tork-governance:0.2.0'
+implementation 'com.torknetwork:tork-governance:0.4.0'
 ```
 
 ## Quick Start
@@ -107,6 +107,25 @@ SDK's separate, older regional mechanism.
 | Passport | `passport` | `AB1234567` | `[PASSPORT_REDACTED]` |
 | Driver's License | `drivers_license` | `D1234567` | `[DL_REDACTED]` |
 | Bank Account | `bank_account` | `12345678901234` | `[ACCOUNT_REDACTED]` |
+
+## Agent telemetry fields
+
+Optional fields that tie a governance call to an agent and a session:
+`agent_id`, `agent_role`, `session_id` and `session_turn` (an integer).
+In Java they live on `SessionContext`.
+
+```java
+SessionContext ctx = new SessionContext("agent-7", "planner", "sess-42", 3);
+GovernanceResult r = tork.govern("My email is test@example.com", ctx);
+
+r.getSessionContext();       // the context you passed, or null if none
+ctx.toRequestFields();       // {agent_id, agent_role, session_id, session_turn}
+```
+
+Fields you set are passed through; fields you leave null (or empty, for the
+strings) are omitted from `toRequestFields()`, never sent as null. This SDK
+governs on-device and makes no network call itself, so `toRequestFields()` is
+what you add to the body of a call you make to the Governance API.
 
 ## Scanning tool results
 
