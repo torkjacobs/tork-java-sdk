@@ -1,10 +1,18 @@
 package com.tork.governance;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 /**
  * Agent/session context for multi-agent governance tracking.
  *
- * <p>All fields are optional. When provided, they are included in the POST body
- * to /api/v1/govern and returned in the receipt under {@code session_context}.</p>
+ * <p>All fields are optional. Fields that are set travel with the governance
+ * call: {@link GovernanceResult#getSessionContext()} returns them, and
+ * {@link #toRequestFields()} gives the snake_case wire fields
+ * ({@code agent_id}, {@code agent_role}, {@code session_id},
+ * {@code session_turn}) for the governance API request body. Fields that are
+ * not set are omitted, never sent as null.</p>
  */
 public class SessionContext {
     private final String agentId;
@@ -38,6 +46,22 @@ public class SessionContext {
 
     /** Get the session turn number. */
     public Integer getSessionTurn() { return sessionTurn; }
+
+    /**
+     * The wire fields for the governance request body, in a fixed order.
+     * Only fields that are set appear: null (or, for the string fields, empty)
+     * values are omitted. {@code session_turn} is an integer.
+     *
+     * @return an unmodifiable map; empty when nothing is set
+     */
+    public Map<String, Object> toRequestFields() {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        if (agentId != null && !agentId.isEmpty()) fields.put("agent_id", agentId);
+        if (agentRole != null && !agentRole.isEmpty()) fields.put("agent_role", agentRole);
+        if (sessionId != null && !sessionId.isEmpty()) fields.put("session_id", sessionId);
+        if (sessionTurn != null) fields.put("session_turn", sessionTurn);
+        return Collections.unmodifiableMap(fields);
+    }
 
     @Override
     public String toString() {

@@ -89,6 +89,18 @@ public class Tork {
     }
 
     /**
+     * Apply governance to input text with agent/session context.
+     *
+     * @param input the text to govern
+     * @param sessionContext optional agent/session context (agent_id, agent_role,
+     *                       session_id, session_turn); null or unset fields are omitted
+     * @return governance result with action, output, receipt and the session context
+     */
+    public GovernanceResult govern(String input, SessionContext sessionContext) {
+        return govern(input, null, null, sessionContext);
+    }
+
+    /**
      * Apply governance to input text.
      *
      * <p>Detects PII and redacts it, generating a cryptographic receipt

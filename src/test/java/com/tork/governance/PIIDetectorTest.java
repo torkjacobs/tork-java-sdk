@@ -242,4 +242,40 @@ class PIIDetectorTest {
         }
         assertEquals(expected, actual);
     }
+
+    /**
+     * One positive and one negative example per declared type. A declared type
+     * whose pattern cannot be shown to fire on a real example, and stay quiet
+     * on a near miss, is a false claim.
+     */
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.MethodSource("piiExamples")
+    @DisplayName("Each declared type detects its positive and ignores its negative")
+    void testPositiveAndNegativeExamplePerType(PIIType type, String positive, String negative) {
+        assertTrue(detector.containsPII(positive, type), type + " should match: " + positive);
+        assertFalse(detector.containsPII(negative, type), type + " should not match: " + negative);
+    }
+
+    static java.util.stream.Stream<org.junit.jupiter.params.provider.Arguments> piiExamples() {
+        return java.util.stream.Stream.of(
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.SSN, "SSN 123-45-6789", "ref 123456789"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.CREDIT_CARD, "card 4111-1111-1111-1111", "card 4111-1111"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.EMAIL, "mail test@example.com", "mail test at example dot com"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.PHONE, "call 555-123-4567", "call 12345"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.ADDRESS, "lives at 123 Main Street", "lives on Main Street"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.IP_ADDRESS, "host 192.168.1.1", "host 999.999.999.999"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.DATE_OF_BIRTH, "born 01/15/1990", "born 13/45/1990"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.PASSPORT, "passport AB1234567", "passport ab1234567"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.DRIVERS_LICENSE, "licence D1234567", "licence D123"),
+            org.junit.jupiter.params.provider.Arguments.of(PIIType.BANK_ACCOUNT, "acct 12345678901234", "acct 1234567")
+        );
+    }
+
+    @Test
+    @DisplayName("Positive/negative examples cover every declared type")
+    void testExamplesCoverEveryDeclaredType() {
+        Set<PIIType> covered = new java.util.HashSet<>();
+        piiExamples().forEach(a -> covered.add((PIIType) a.get()[0]));
+        assertEquals(new java.util.HashSet<>(java.util.Arrays.asList(PIIType.values())), covered);
+    }
 }

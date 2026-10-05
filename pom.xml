@@ -11,7 +11,7 @@
          the artifact anyone depends on. Corrected 25 Sep 2026. -->
     <groupId>io.github.torkjacobs</groupId>
     <artifactId>tork-governance</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
     <packaging>jar</packaging>
 
     <name>Tork Governance SDK</name>

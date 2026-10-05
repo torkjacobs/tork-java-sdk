@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0 - 2026-10-03
+
+### Added
+- **Agent telemetry fields.** `SessionContext` (`agent_id`, `agent_role`,
+  `session_id`, `session_turn` as an integer) gains `toRequestFields()`, which
+  returns the snake_case request fields and omits any that are unset. New
+  `Tork#govern(String, SessionContext)` overload; the context is returned on
+  `GovernanceResult#getSessionContext()`. Tests in `SessionContextTest`.
+- A positive and a negative example test for each of the 10 declared PII types
+  (`PIIDetectorTest`), plus a check that the examples cover every declared type.
+
+### Changed
+- `SessionContext` Javadoc no longer claims the fields are returned on the
+  receipt; this SDK does not put them there.
+
+### PII types
+All 10 declared types (`ssn`, `credit_card`, `email`, `phone`, `address`,
+`ip_address`, `date_of_birth`, `passport`, `drivers_license`, `bank_account`)
+already had a pattern (parity test since 0.2.0); none removed.
+
 ## 0.3.0 - 2026-09-25
 
 ### Added
